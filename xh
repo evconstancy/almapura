@@ -1,0 +1,58 @@
+script_author('The Spark / Custom Galaxy')
+script_name('chatHider')
+
+local hook = require("hooks")
+local ffiStr = require('ffi').string
+local unload = false
+
+function main()
+    sampChatHook = hook.jmp.new("void(__thiscall *)(uintptr_t this, uint32_t type, const char* text, const char* prefix, uint32_t color, uint32_t pcolor)", sampChatHook, getModuleHandle('samp.dll') + 0x64010)
+	while not isSampAvailable() do wait(0) end
+	if sampIsLocalPlayerSpawned() then unloadScript() end
+    wait(-1)
+end
+
+local sampMessageTab = {
+	"^%{FFFFFF%}SA%-MP %{B9C9BF%}0%.3%.7 %{FFFFFF%}Started$",
+	"^Connecting to .+%.%.%.$",
+	"^Connected%. Joining the game%.%.%.$",
+	"^Server closed the connection%.$",
+	"^The server is restarting%.%.$",
+	"^The server didn%'t respond%. Retrying%.%.$",
+	"^You are banned from this server%.$"
+}
+
+function wordProcessing(text)
+	for i = 1, #sampMessageTab do
+		local index = sampMessageTab[i]
+		if text:find(index) then
+			return true
+		end
+	end
+	sampfuncsLog(text)
+end
+
+function unloadScript()
+	unload = true
+	thisScript():unload()
+end
+
+function sampChatHook(this, type, text, prefix, color, pcolor)
+	local texta = ffiStr(text)
+	if wordProcessing(texta) or unload then
+		sampChatHook(this, type, text, prefix, color, pcolor)
+	end
+
+	-- Íóæíî, ò.ê èãðà çàãðóæàåòñÿ ó âñåõ ïî ðàçíîìó, ÷åðåç ôóíêöèþ âîçìîæíû ïðåæäåâðåìåííûå/çàïîçäàëûå ñðàáàòûâàíèÿ
+	if texta == "Connected. Joining the game..." then
+		unloadScript()
+	end
+end
+
+-- {FFFFFF}SA-MP {B9C9BF}0.3.7 {FFFFFF}Started
+-- Connecting to 54.38.188.57:7777...
+-- Connected. Joining the game...
+-- Server closed the connection.
+-- The server is restarting..
+-- The server didn't respond. Retrying..
+-- You are banned from this server.
